@@ -54,6 +54,8 @@ type policyProfileResourceModel struct {
 	MigrationSafety        types.String `tfsdk:"migration_safety"`
 	EgressBytesPerDay      types.Int64  `tfsdk:"egress_bytes_per_day"`
 	MaxAffectedRows        types.Int64  `tfsdk:"max_affected_rows"`
+	ContentScanMode        types.String `tfsdk:"content_scan_mode"`
+	ContentScanMaxBytes    types.Int64  `tfsdk:"content_scan_max_bytes"`
 	CreatedAt              types.String `tfsdk:"created_at"`
 	UpdatedAt              types.String `tfsdk:"updated_at"`
 }
@@ -236,6 +238,14 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "Hard cap on rows a single write (INSERT/UPDATE/DELETE) may affect. A write whose affected-row count would exceed this is executed inside a transaction, checked, and rolled back so nothing persists, then blocked. Enforced independently of human approval. 0 means unlimited.",
 				Optional:    true,
 			},
+			"content_scan_mode": schema.StringAttribute{
+				Description: "Result-content scanning, accepted and stored but not yet enforced: no released proxy build reads this field, so today every value behaves like off. Once enforcement ships on the data-plane relay path, values on their way out to an agent will be checked for instruction-shaped content (stored prompt injection). off will scan nothing and cost nothing. annotate will forward every value unchanged and record what it found. block will additionally refuse the statement with an error naming the column, and never drop a row silently. A proxy build without result-content scanning ignores this field.",
+				Optional:    true,
+			},
+			"content_scan_max_bytes": schema.Int64Attribute{
+				Description: "Byte budget for one statement's content scan, spanning all values in the result. Stored but not yet read by any released proxy build, like content_scan_mode. Once enforced, values past it are reported unscannable rather than skipped quietly. 0 uses the scanner default (4 MiB), which covers an interactive result set and deliberately does not cover a bulk export.",
+				Optional:    true,
+			},
 			"created_at": schema.StringAttribute{
 				Description: "When the policy profile was created.",
 				Computed:    true,
@@ -388,6 +398,16 @@ func (r *policyProfileResource) Create(ctx context.Context, req resource.CreateR
 		createReq.MaxAffectedRows = &v
 	}
 
+	if !plan.ContentScanMode.IsNull() && !plan.ContentScanMode.IsUnknown() {
+		v := pgbeam.PolicyProfileInputContentScanMode(plan.ContentScanMode.ValueString())
+		createReq.ContentScanMode = &v
+	}
+
+	if !plan.ContentScanMaxBytes.IsNull() && !plan.ContentScanMaxBytes.IsUnknown() {
+		v := plan.ContentScanMaxBytes.ValueInt64()
+		createReq.ContentScanMaxBytes = &v
+	}
+
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
 		var statementRulesVar statementRulesModel
 		resp.Diagnostics.Append(plan.StatementRules.As(ctx, &statementRulesVar, objectAsOptions())...)
@@ -477,6 +497,8 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 		!plan.MigrationSafety.Equal(state.MigrationSafety) ||
 		!plan.EgressBytesPerDay.Equal(state.EgressBytesPerDay) ||
 		!plan.MaxAffectedRows.Equal(state.MaxAffectedRows) ||
+		!plan.ContentScanMode.Equal(state.ContentScanMode) ||
+		!plan.ContentScanMaxBytes.Equal(state.ContentScanMaxBytes) ||
 		!plan.StatementRules.Equal(state.StatementRules)
 
 	updateReq := pgbeam.PolicyProfileInput{
@@ -592,6 +614,16 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 	if !plan.MaxAffectedRows.IsNull() && !plan.MaxAffectedRows.IsUnknown() {
 		v := int(plan.MaxAffectedRows.ValueInt64())
 		updateReq.MaxAffectedRows = &v
+	}
+
+	if !plan.ContentScanMode.IsNull() && !plan.ContentScanMode.IsUnknown() {
+		v := pgbeam.PolicyProfileInputContentScanMode(plan.ContentScanMode.ValueString())
+		updateReq.ContentScanMode = &v
+	}
+
+	if !plan.ContentScanMaxBytes.IsNull() && !plan.ContentScanMaxBytes.IsUnknown() {
+		v := plan.ContentScanMaxBytes.ValueInt64()
+		updateReq.ContentScanMaxBytes = &v
 	}
 
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
@@ -814,6 +846,16 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		state.MaxAffectedRows = types.Int64Value(int64(*resp.MaxAffectedRows))
 	} else {
 		state.MaxAffectedRows = types.Int64Null()
+	}
+	if resp.ContentScanMode != nil && string(*resp.ContentScanMode) != "" {
+		state.ContentScanMode = types.StringValue(string(*resp.ContentScanMode))
+	} else {
+		state.ContentScanMode = types.StringNull()
+	}
+	if resp.ContentScanMaxBytes != nil {
+		state.ContentScanMaxBytes = types.Int64Value(int64(*resp.ContentScanMaxBytes))
+	} else {
+		state.ContentScanMaxBytes = types.Int64Null()
 	}
 	state.CreatedAt = types.StringValue(resp.CreatedAt.Format(time.RFC3339))
 	state.UpdatedAt = types.StringValue(resp.UpdatedAt.Format(time.RFC3339))
