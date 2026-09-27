@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/hashicorp/terraform-plugin-framework v1.19.0
 	github.com/hashicorp/terraform-plugin-go v0.31.0
-	go.pgbeam.com/sdk v0.3.3
+	go.pgbeam.com/sdk v0.3.4
 )
 
 require (
