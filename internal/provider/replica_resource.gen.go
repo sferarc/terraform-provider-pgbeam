@@ -85,6 +85,7 @@ func (r *replicaResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"ssl_mode": schema.StringAttribute{
 				Description: "PostgreSQL SSL connection mode.",
 				Optional:    true,
+				Computed:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},

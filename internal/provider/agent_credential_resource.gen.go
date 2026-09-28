@@ -99,6 +99,7 @@ func (r *agentCredentialResource) Schema(_ context.Context, _ resource.SchemaReq
 			"status": schema.StringAttribute{
 				Description: "Lifecycle status of the credential.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"principal_type": schema.StringAttribute{
 				Description: "Whether this credential represents an autonomous agent or a human operator.",

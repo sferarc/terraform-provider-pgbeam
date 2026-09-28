@@ -12,7 +12,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	pgbeam "go.pgbeam.com/sdk"
@@ -79,6 +81,8 @@ func (r *webhookEndpointResource) Schema(_ context.Context, _ resource.SchemaReq
 			"format": schema.StringAttribute{
 				Description: "Payload format for delivered events.",
 				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("json"),
 			},
 			"event_types": schema.ListAttribute{
 				Description: "Event types to deliver. Empty means all events.",
@@ -88,6 +92,8 @@ func (r *webhookEndpointResource) Schema(_ context.Context, _ resource.SchemaReq
 			"enabled": schema.BoolAttribute{
 				Description: "Whether deliveries are active for this endpoint.",
 				Optional:    true,
+				Computed:    true,
+				Default:     booldefault.StaticBool(true),
 			},
 			"description": schema.StringAttribute{
 				Description: "Human-readable label for the endpoint.",

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	pgbeam "go.pgbeam.com/sdk"
@@ -131,6 +132,8 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 			"access_mode": schema.StringAttribute{
 				Description: "read_only blocks all data and schema mutations.",
 				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("read_only"),
 			},
 			"statement_rules": schema.SingleNestedAttribute{
 				Description: "Per-statement-kind allow/deny lists. Empty allow means all kinds permitted by the access mode.",

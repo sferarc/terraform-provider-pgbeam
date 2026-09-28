@@ -17,5 +17,6 @@ func pgbeamResources() []func() resource.Resource {
 		NewWebhookEndpointResource,
 		NewSelfHostEnrollmentResource,
 		NewHoneytokenResource,
+		NewAnomalyRuleResource,
 	}
 }

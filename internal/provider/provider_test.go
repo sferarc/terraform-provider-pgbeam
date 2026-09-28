@@ -66,8 +66,8 @@ func TestProviderResourcesAndDataSources(t *testing.T) {
 
 	p := newTestProvider()
 	resources := p.Resources(context.Background())
-	if len(resources) != 11 {
-		t.Errorf("Resources() returned %d factories, want 11", len(resources))
+	if len(resources) != 12 {
+		t.Errorf("Resources() returned %d factories, want 12", len(resources))
 	}
 	for i, factory := range resources {
 		if factory() == nil {

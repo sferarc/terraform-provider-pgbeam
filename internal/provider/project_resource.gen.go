@@ -200,6 +200,7 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"status": schema.StringAttribute{
 				Description: "Project lifecycle status.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"created_at": schema.StringAttribute{
 				Description: "When the project was created.",

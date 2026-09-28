@@ -137,6 +137,7 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"ssl_mode": schema.StringAttribute{
 				Description: "PostgreSQL SSL connection mode.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"role": schema.StringAttribute{
 				Description: "Database role. Primary receives writes, replicas receive reads.",
