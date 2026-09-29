@@ -158,6 +158,7 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"cache_config": schema.SingleNestedAttribute{
 				Description: "Query cache configuration.",
 				Optional:    true,
+				Computed:    true,
 				Attributes: map[string]schema.Attribute{
 					"enabled": schema.BoolAttribute{
 						Description: "Whether query caching is enabled. When false, all queries bypass the cache.",
@@ -180,6 +181,7 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"pool_config": schema.SingleNestedAttribute{
 				Description: "Connection pool configuration.",
 				Optional:    true,
+				Computed:    true,
 				Attributes: map[string]schema.Attribute{
 					"pool_size": schema.Int64Attribute{
 						Description: "Maximum connections in the pool.",

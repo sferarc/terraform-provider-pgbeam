@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/listdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -154,16 +155,22 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 			"table_allowlist": schema.ListAttribute{
 				Description: "If non-empty, only these relations are reachable. Entries are schema-qualified (billing.orders) or bare (orders); a bare entry grants the public schema only, so the same table name in another schema must be listed in full.",
 				Optional:    true,
+				Computed:    true,
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				ElementType: types.StringType,
 			},
 			"table_denylist": schema.ListAttribute{
 				Description: "Relations explicitly blocked (takes precedence over the allowlist). A bare entry blocks that relation in every schema.",
 				Optional:    true,
+				Computed:    true,
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
 				ElementType: types.StringType,
 			},
 			"masking_rules": schema.ListNestedAttribute{
 				Description: "Column masking rules applied to query results.",
 				Optional:    true,
+				Computed:    true,
+				Default:     listdefault.StaticValue(types.ListValueMust(types.ObjectType{AttrTypes: maskingRulesElemAttrTypes()}, []attr.Value{})),
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"table": schema.StringAttribute{
@@ -753,7 +760,7 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		diags.Append(d...)
 		state.TableAllowlist = tagsList
 	} else {
-		state.TableAllowlist = types.ListNull(types.StringType)
+		state.TableAllowlist = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	if len(resp.TableDenylist) > 0 {
 		tagValues := make([]attr.Value, len(resp.TableDenylist))
@@ -764,7 +771,7 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		diags.Append(d...)
 		state.TableDenylist = tagsList
 	} else {
-		state.TableDenylist = types.ListNull(types.StringType)
+		state.TableDenylist = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	if len(resp.MaskingRules) > 0 {
 		maskingRulesValues := make([]attr.Value, len(resp.MaskingRules))
@@ -779,7 +786,7 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		diags.Append(maskingRulesD...)
 		state.MaskingRules = maskingRulesList
 	} else {
-		state.MaskingRules = types.ListNull(types.ObjectType{AttrTypes: maskingRulesElemAttrTypes()})
+		state.MaskingRules = types.ListValueMust(types.ObjectType{AttrTypes: maskingRulesElemAttrTypes()}, []attr.Value{})
 	}
 	if resp.BudgetQueriesPerHour != nil {
 		state.BudgetQueriesPerHour = types.Int64Value(int64(*resp.BudgetQueriesPerHour))

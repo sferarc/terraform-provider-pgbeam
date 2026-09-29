@@ -101,8 +101,7 @@ func attributeDefault(t *testing.T, attr resschema.Attribute) (hasDefault bool, 
 		a.Default.DefaultFloat64(ctx, defaults.Float64Request{}, resp)
 		return true, fmt.Sprintf("%v", resp.PlanValue.ValueFloat64())
 	default:
-		// Lists and objects are not in this shape: the generator leaves them
-		// Optional-only on purpose, so they never reach here as Computed.
+		// Lists and objects are swept in optional_computed_collections_test.go.
 		return false, ""
 	}
 }
