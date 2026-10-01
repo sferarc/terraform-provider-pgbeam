@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -118,6 +119,40 @@ func isScalarAttribute(attr resschema.Attribute) bool {
 	}
 }
 
+// forEachScalarAttribute visits scalars at any depth, qualified by their dotted path.
+func forEachScalarAttribute(prefix string, attrs map[string]resschema.Attribute, fn func(string, resschema.Attribute)) {
+	for name, attr := range attrs {
+		qualified := prefix + "." + name
+		switch a := attr.(type) {
+		case resschema.SingleNestedAttribute:
+			forEachScalarAttribute(qualified, a.Attributes, fn)
+		case resschema.ListNestedAttribute:
+			forEachScalarAttribute(qualified, a.NestedObject.Attributes, fn)
+		default:
+			if isScalarAttribute(attr) {
+				fn(qualified, attr)
+			}
+		}
+	}
+}
+
+// lookupAttribute resolves a dotted path such as "pool_config.max_active".
+func lookupAttribute(attrs map[string]resschema.Attribute, path string) (resschema.Attribute, bool) {
+	head, rest, nested := strings.Cut(path, ".")
+	attr, ok := attrs[head]
+	if !ok || !nested {
+		return attr, ok
+	}
+	switch a := attr.(type) {
+	case resschema.SingleNestedAttribute:
+		return lookupAttribute(a.Attributes, rest)
+	case resschema.ListNestedAttribute:
+		return lookupAttribute(a.NestedObject.Attributes, rest)
+	default:
+		return nil, false
+	}
+}
+
 // TestOptionalComputedScalars_CarryADefaultOrAreNamed sweeps every registered
 // resource rather than listing the attributes it expects, so a resource
 // registered tomorrow with an API-defaulted scalar fails here instead of
@@ -132,12 +167,11 @@ func TestOptionalComputedScalars_CarryADefaultOrAreNamed(t *testing.T) {
 		typeName := resourceTypeName(t, r)
 		s := resourceSchema(t, r)
 
-		for name, attr := range s.Attributes {
-			if !attr.IsOptional() || !attr.IsComputed() || !isScalarAttribute(attr) {
-				continue
+		forEachScalarAttribute(typeName, s.Attributes, func(qualified string, attr resschema.Attribute) {
+			if !attr.IsOptional() || !attr.IsComputed() {
+				return
 			}
 			seen++
-			qualified := typeName + "." + name
 
 			hasDefault, _ := attributeDefault(t, attr)
 			reason, exempt := optionalComputedWithoutDefault[qualified]
@@ -156,7 +190,7 @@ func TestOptionalComputedScalars_CarryADefaultOrAreNamed(t *testing.T) {
 					"Drop the entry, or stop the generator emitting the Default.",
 					qualified, reason)
 			}
-		}
+		})
 	}
 
 	// A guard on the guard. If the generator stopped emitting Optional+Computed
@@ -191,6 +225,7 @@ func TestApiDefaultedScalars_PlanTheDeclaredDefault(t *testing.T) {
 		{NewAnomalyRuleResource, "enabled", "true"},
 		{NewWebhookEndpointResource, "enabled", "true"},
 		{NewWebhookEndpointResource, "format", "json"},
+		{NewDatabaseResource, "pool_config.max_active", "200"},
 	}
 
 	for _, tc := range cases {
@@ -198,7 +233,7 @@ func TestApiDefaultedScalars_PlanTheDeclaredDefault(t *testing.T) {
 		name := resourceTypeName(t, r) + "." + tc.attr
 		t.Run(name, func(t *testing.T) {
 			s := resourceSchema(t, r)
-			attr, ok := s.Attributes[tc.attr]
+			attr, ok := lookupAttribute(s.Attributes, tc.attr)
 			if !ok {
 				t.Fatalf("%s: attribute missing from the schema", name)
 			}

@@ -281,10 +281,14 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 		allowedCidrsEntries := make([]pgbeam.CidrEntry, len(allowedCidrsElems))
 		for i, e := range allowedCidrsElems {
-			tmpLabel := e.Label.ValueString()
+			var tmpLabel *string
+			if !e.Label.IsNull() && !e.Label.IsUnknown() {
+				v := e.Label.ValueString()
+				tmpLabel = &v
+			}
 			allowedCidrsEntries[i] = pgbeam.CidrEntry{
 				Cidr:  e.Cidr.ValueString(),
-				Label: &tmpLabel,
+				Label: tmpLabel,
 			}
 		}
 		updateReq.AllowedCidrs = &allowedCidrsEntries
@@ -403,10 +407,14 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 			}
 			allowedCidrsEntries := make([]pgbeam.CidrEntry, len(allowedCidrsElems))
 			for i, e := range allowedCidrsElems {
-				tmpLabel := e.Label.ValueString()
+				var tmpLabel *string
+				if !e.Label.IsNull() && !e.Label.IsUnknown() {
+					v := e.Label.ValueString()
+					tmpLabel = &v
+				}
 				allowedCidrsEntries[i] = pgbeam.CidrEntry{
 					Cidr:  e.Cidr.ValueString(),
-					Label: &tmpLabel,
+					Label: tmpLabel,
 				}
 			}
 			updateReq.AllowedCidrs = &allowedCidrsEntries

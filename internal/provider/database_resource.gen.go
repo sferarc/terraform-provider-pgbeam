@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -198,6 +199,8 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 					"max_active": schema.Int64Attribute{
 						Description: "Maximum concurrent upstream connections per pool.",
 						Optional:    true,
+						Computed:    true,
+						Default:     int64default.StaticInt64(200),
 					},
 				},
 			},
@@ -297,12 +300,16 @@ func (r *databaseResource) Create(ctx context.Context, req resource.CreateReques
 		if resp.Diagnostics.HasError() {
 			return
 		}
-		tmpPoolConfigMaxActive := int(poolConfigVar.MaxActive.ValueInt64())
+		var tmpPoolConfigMaxActive *int
+		if !poolConfigVar.MaxActive.IsNull() && !poolConfigVar.MaxActive.IsUnknown() {
+			v := int(poolConfigVar.MaxActive.ValueInt64())
+			tmpPoolConfigMaxActive = &v
+		}
 		createReq.PoolConfig = &pgbeam.PoolConfig{
 			PoolSize:    int(poolConfigVar.PoolSize.ValueInt64()),
 			MinPoolSize: int(poolConfigVar.MinPoolSize.ValueInt64()),
 			PoolMode:    pgbeam.PoolMode(poolConfigVar.PoolMode.ValueString()),
-			MaxActive:   &tmpPoolConfigMaxActive,
+			MaxActive:   tmpPoolConfigMaxActive,
 		}
 	}
 
@@ -439,12 +446,16 @@ func (r *databaseResource) Update(ctx context.Context, req resource.UpdateReques
 			if resp.Diagnostics.HasError() {
 				return
 			}
-			tmpPoolConfigMaxActive := int(poolConfigVar.MaxActive.ValueInt64())
+			var tmpPoolConfigMaxActive *int
+			if !poolConfigVar.MaxActive.IsNull() && !poolConfigVar.MaxActive.IsUnknown() {
+				v := int(poolConfigVar.MaxActive.ValueInt64())
+				tmpPoolConfigMaxActive = &v
+			}
 			updateReq.PoolConfig = &pgbeam.PoolConfig{
 				PoolSize:    int(poolConfigVar.PoolSize.ValueInt64()),
 				MinPoolSize: int(poolConfigVar.MinPoolSize.ValueInt64()),
 				PoolMode:    pgbeam.PoolMode(poolConfigVar.PoolMode.ValueString()),
-				MaxActive:   &tmpPoolConfigMaxActive,
+				MaxActive:   tmpPoolConfigMaxActive,
 			}
 			hasChanges = true
 		}
@@ -555,11 +566,15 @@ func (r *databaseResource) mapDatabaseToState(ctx context.Context, state *databa
 	})
 	diags.Append(d...)
 	state.CacheConfig = obj
+	poolConfigMaxActiveValue := types.Int64Null()
+	if resp.PoolConfig.MaxActive != nil {
+		poolConfigMaxActiveValue = types.Int64Value(int64(*resp.PoolConfig.MaxActive))
+	}
 	poolConfigObj, poolConfigD := types.ObjectValue(poolConfigAttrTypes(), map[string]attr.Value{
 		"pool_size":     types.Int64Value(int64(resp.PoolConfig.PoolSize)),
 		"min_pool_size": types.Int64Value(int64(resp.PoolConfig.MinPoolSize)),
 		"pool_mode":     types.StringValue(string(resp.PoolConfig.PoolMode)),
-		"max_active":    types.Int64Value(int64(*resp.PoolConfig.MaxActive)),
+		"max_active":    poolConfigMaxActiveValue,
 	})
 	diags.Append(poolConfigD...)
 	state.PoolConfig = poolConfigObj
