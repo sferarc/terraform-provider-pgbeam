@@ -1,8 +1,10 @@
 # PgBeam Terraform Provider
 
-Terraform provider for [PgBeam](https://pgbeam.com) — manage your globally distributed PostgreSQL proxy infrastructure as code.
+Terraform provider for [PgBeam](https://pgbeam.com): manage your globally distributed PostgreSQL proxy infrastructure as code.
 
 ## Usage
+
+The provider is not in the Terraform Registry yet, so `terraform init` cannot resolve `sferarc/pgbeam` from it. Until it is, download a build from [GitHub releases](https://github.com/sferarc/terraform-provider-pgbeam/releases) and point Terraform at it with a [`dev_overrides`](https://developer.hashicorp.com/terraform/cli/config/config-file#development-overrides-for-provider-developers) block in your Terraform CLI configuration. The `source` below is the address it will have once published.
 
 ```hcl
 terraform {
