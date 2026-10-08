@@ -1,5 +1,11 @@
 # @pgbeam/terraform
 
+## 0.1.4
+
+### Patch Changes
+
+- 4b54b03: A `pool_config` without `max_active` now plans the API's default of 200 instead of sending 0, and an `allowed_cidrs` entry without a `label` no longer fails apply with an inconsistent result.
+
 ## 0.1.3
 
 ### Patch Changes
