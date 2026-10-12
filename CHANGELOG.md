@@ -1,5 +1,11 @@
 # @pgbeam/terraform
 
+## 0.1.5
+
+### Patch Changes
+
+- c1888e5: Release the AnomalyRule and ApprovalRule resources, which were added without a provider version bump.
+
 ## 0.1.4
 
 ### Patch Changes
