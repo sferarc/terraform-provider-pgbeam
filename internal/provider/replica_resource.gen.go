@@ -220,6 +220,7 @@ func (r *replicaResource) ImportState(ctx context.Context, req resource.ImportSt
 // Returns a not-found error if no match is found.
 func (r *replicaResource) findReplica(ctx context.Context, databaseID string, ReplicaID string) (*pgbeam.Replica, error) {
 	var pageToken *string
+	seen := map[string]bool{}
 	for {
 		params := &pgbeam.ListReplicasParams{
 			PageToken: pageToken,
@@ -236,6 +237,10 @@ func (r *replicaResource) findReplica(ctx context.Context, databaseID string, Re
 		if listResp.NextPageToken == nil || *listResp.NextPageToken == "" {
 			break
 		}
+		if seen[*listResp.NextPageToken] {
+			return nil, fmt.Errorf("listing replicas: next_page_token %q repeated", *listResp.NextPageToken)
+		}
+		seen[*listResp.NextPageToken] = true
 		pageToken = listResp.NextPageToken
 	}
 	return nil, &pgbeam.APIError{StatusCode: 404, Status: "404 Not Found", Body: fmt.Sprintf("replica %s not found", ReplicaID)}

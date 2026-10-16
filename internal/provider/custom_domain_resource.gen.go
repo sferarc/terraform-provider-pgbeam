@@ -282,6 +282,7 @@ func (r *customDomainResource) ImportState(ctx context.Context, req resource.Imp
 // Returns a not-found error if no match is found.
 func (r *customDomainResource) findCustomDomain(ctx context.Context, projectID string, CustomDomainID string) (*pgbeam.CustomDomain, error) {
 	var pageToken *string
+	seen := map[string]bool{}
 	for {
 		params := &pgbeam.ListCustomDomainsParams{
 			PageToken: pageToken,
@@ -298,6 +299,10 @@ func (r *customDomainResource) findCustomDomain(ctx context.Context, projectID s
 		if listResp.NextPageToken == nil || *listResp.NextPageToken == "" {
 			break
 		}
+		if seen[*listResp.NextPageToken] {
+			return nil, fmt.Errorf("listing custom domains: next_page_token %q repeated", *listResp.NextPageToken)
+		}
+		seen[*listResp.NextPageToken] = true
 		pageToken = listResp.NextPageToken
 	}
 	return nil, &pgbeam.APIError{StatusCode: 404, Status: "404 Not Found", Body: fmt.Sprintf("custom domain %s not found", CustomDomainID)}

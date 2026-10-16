@@ -314,6 +314,8 @@ func (r *cacheRuleResource) ImportState(ctx context.Context, req resource.Import
 
 	var state cacheRuleResourceModel
 	state.ID = types.StringValue(req.ID)
+	state.ProjectID = types.StringValue(projectID)
+	state.DatabaseID = types.StringValue(databaseID)
 	state.QueryHash = types.StringValue(queryHash)
 	r.mapCacheRuleEntryToState(&state, CacheRuleEntry)
 
@@ -324,6 +326,7 @@ func (r *cacheRuleResource) ImportState(ctx context.Context, req resource.Import
 // Returns a not-found error if no match is found.
 func (r *cacheRuleResource) findCacheRuleEntry(ctx context.Context, projectID string, databaseID string, queryHash string) (*pgbeam.CacheRuleEntry, error) {
 	var pageToken *string
+	seen := map[string]bool{}
 	for {
 		params := &pgbeam.ListCacheRulesParams{
 			PageToken: pageToken,
@@ -340,6 +343,10 @@ func (r *cacheRuleResource) findCacheRuleEntry(ctx context.Context, projectID st
 		if listResp.NextPageToken == nil || *listResp.NextPageToken == "" {
 			break
 		}
+		if seen[*listResp.NextPageToken] {
+			return nil, fmt.Errorf("listing cache rules: next_page_token %q repeated", *listResp.NextPageToken)
+		}
+		seen[*listResp.NextPageToken] = true
 		pageToken = listResp.NextPageToken
 	}
 	return nil, &pgbeam.APIError{StatusCode: 404, Status: "404 Not Found", Body: fmt.Sprintf("cache rule %s not found", queryHash)}

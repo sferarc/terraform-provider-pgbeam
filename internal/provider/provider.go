@@ -2,9 +2,14 @@ package provider
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/url"
 	"os"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -44,7 +49,7 @@ func (p *pgbeamProvider) Schema(_ context.Context, _ provider.SchemaRequest, res
 				Sensitive:   true,
 			},
 			"base_url": schema.StringAttribute{
-				Description: "Base URL for the PgBeam API. Defaults to https://api.pgbeam.com. Can also be set via the PGBEAM_API_URL environment variable.",
+				Description: "Base URL for the PgBeam API. Defaults to https://api.pgbeam.com. Must use https; http is accepted only for localhost, 127.0.0.1 and ::1. Can also be set via the PGBEAM_API_URL environment variable.",
 				Optional:    true,
 			},
 		},
@@ -62,6 +67,7 @@ func (p *pgbeamProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	if !config.APIKey.IsNull() && !config.APIKey.IsUnknown() {
 		apiKey = config.APIKey.ValueString()
 	}
+	apiKey = strings.TrimSpace(apiKey)
 
 	if apiKey == "" {
 		resp.Diagnostics.AddError(
@@ -71,9 +77,22 @@ func (p *pgbeamProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	baseURL := os.Getenv("PGBEAM_API_URL")
+	baseURL := strings.TrimSpace(os.Getenv("PGBEAM_API_URL"))
+	source := "the PGBEAM_API_URL environment variable"
 	if !config.BaseURL.IsNull() && !config.BaseURL.IsUnknown() {
-		baseURL = config.BaseURL.ValueString()
+		baseURL = strings.TrimSpace(config.BaseURL.ValueString())
+		source = "base_url"
+	}
+
+	if baseURL != "" {
+		if err := validateBaseURL(baseURL); err != nil {
+			resp.Diagnostics.AddAttributeError(
+				path.Root("base_url"),
+				"Invalid Base URL",
+				fmt.Sprintf("The PgBeam API base URL from %s is invalid: %s.", source, err),
+			)
+			return
+		}
 	}
 
 	client := pgbeam.NewClient(&pgbeam.ClientOptions{
@@ -91,4 +110,37 @@ func (p *pgbeamProvider) Resources(_ context.Context) []func() resource.Resource
 
 func (p *pgbeamProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return pgbeamDataSources()
+}
+
+// validateBaseURL rejects URLs that would send the API key in plaintext or that the SDK cannot address.
+func validateBaseURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return errors.New("it is not a valid URL")
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return errors.New("it must be an absolute URL such as https://api.pgbeam.com")
+	}
+	if u.Hostname() == "" {
+		return errors.New("it must include a host")
+	}
+	switch u.Scheme {
+	case "https":
+		return nil
+	case "http":
+		if isLoopbackHost(u.Hostname()) {
+			return nil
+		}
+		return errors.New("http is only allowed for localhost, 127.0.0.1 and ::1; use https so the API key is not sent in plaintext")
+	default:
+		return fmt.Errorf("unsupported scheme %q; use https", u.Scheme)
+	}
+}
+
+func isLoopbackHost(host string) bool {
+	switch strings.ToLower(host) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
 }

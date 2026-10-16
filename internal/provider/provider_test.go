@@ -2,6 +2,9 @@ package provider
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -165,5 +168,98 @@ func TestProviderConfigure_ExplicitConfigOverridesEnv(t *testing.T) {
 	}
 	if _, ok := resp.ResourceData.(*pgbeam.Client); !ok {
 		t.Fatalf("ResourceData = %T, want *pgbeam.Client", resp.ResourceData)
+	}
+}
+
+func TestProviderConfigure_Validation(t *testing.T) {
+	tests := []struct {
+		name       string
+		envKey     string
+		envURL     string
+		apiKey     *string
+		baseURL    *string
+		wantErr    string
+		wantErrEnv bool
+	}{
+		{name: "https base URL", apiKey: strPtr("pgb_key"), baseURL: strPtr("https://api.pgbeam.com")},
+		{name: "http localhost with port", apiKey: strPtr("pgb_key"), baseURL: strPtr("http://localhost:8080")},
+		{name: "http loopback IPv4", apiKey: strPtr("pgb_key"), baseURL: strPtr("http://127.0.0.1:8080")},
+		{name: "http loopback IPv6", apiKey: strPtr("pgb_key"), baseURL: strPtr("http://[::1]:8080")},
+		{name: "default base URL", apiKey: strPtr("pgb_key")},
+		{name: "http remote host", apiKey: strPtr("pgb_key"), baseURL: strPtr("http://api.pgbeam.com"), wantErr: "plaintext"},
+		{name: "scheme-less", apiKey: strPtr("pgb_key"), baseURL: strPtr("api.pgbeam.com"), wantErr: "absolute URL"},
+		{name: "unsupported scheme", apiKey: strPtr("pgb_key"), baseURL: strPtr("ftp://api.pgbeam.com"), wantErr: "unsupported scheme"},
+		{name: "missing host", apiKey: strPtr("pgb_key"), baseURL: strPtr("https://"), wantErr: "absolute URL"},
+		{name: "env base URL rejected", envKey: "pgb_key", envURL: "http://api.pgbeam.com", wantErr: "plaintext", wantErrEnv: true},
+		{name: "trailing newline key", apiKey: strPtr("pgb_key\n")},
+		{name: "whitespace-only key", apiKey: strPtr(" \n\t"), wantErr: "API key is required"},
+		{name: "whitespace-only env key", envKey: " \n", wantErr: "API key is required"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("PGBEAM_API_KEY", tt.envKey)
+			t.Setenv("PGBEAM_API_URL", tt.envURL)
+
+			p := newTestProvider()
+			resp := &provider.ConfigureResponse{}
+			p.Configure(context.Background(), provider.ConfigureRequest{
+				Config: buildProviderConfig(t, tt.apiKey, tt.baseURL),
+			}, resp)
+
+			if tt.wantErr == "" {
+				if resp.Diagnostics.HasError() {
+					t.Fatalf("unexpected error: %v", resp.Diagnostics)
+				}
+				if _, ok := resp.ResourceData.(*pgbeam.Client); !ok {
+					t.Fatalf("ResourceData = %T, want *pgbeam.Client", resp.ResourceData)
+				}
+				return
+			}
+
+			if !resp.Diagnostics.HasError() {
+				t.Fatalf("expected error containing %q", tt.wantErr)
+			}
+			if resp.ResourceData != nil || resp.DataSourceData != nil {
+				t.Error("expected no client to be configured on error")
+			}
+			detail := resp.Diagnostics.Errors()[0].Detail()
+			if !strings.Contains(detail, tt.wantErr) {
+				t.Errorf("detail = %q, want it to contain %q", detail, tt.wantErr)
+			}
+			if mentionsEnv := strings.Contains(detail, "PGBEAM_API_URL"); mentionsEnv != tt.wantErrEnv {
+				t.Errorf("detail = %q, mentions PGBEAM_API_URL = %v, want %v", detail, mentionsEnv, tt.wantErrEnv)
+			}
+		})
+	}
+}
+
+func TestProviderConfigure_TrimsAPIKey(t *testing.T) {
+	t.Setenv("PGBEAM_API_KEY", "")
+	t.Setenv("PGBEAM_API_URL", "")
+
+	var gotAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	p := newTestProvider()
+	resp := &provider.ConfigureResponse{}
+	p.Configure(context.Background(), provider.ConfigureRequest{
+		Config: buildProviderConfig(t, strPtr("pgb_from_file\n"), strPtr(srv.URL)),
+	}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected error: %v", resp.Diagnostics)
+	}
+
+	client := resp.ResourceData.(*pgbeam.Client)
+	if _, err := client.Projects.ListProjects(context.Background(), &pgbeam.ListProjectsParams{}); err != nil {
+		t.Fatalf("ListProjects: %v", err)
+	}
+	if gotAuth != "Bearer pgb_from_file" {
+		t.Errorf("Authorization = %q, want the trimmed key", gotAuth)
 	}
 }
