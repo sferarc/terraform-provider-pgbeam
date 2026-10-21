@@ -139,9 +139,6 @@ func (r *agentCredentialResource) Schema(_ context.Context, _ resource.SchemaReq
 			"updated_at": schema.StringAttribute{
 				Description: "When the credential was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"connection_string": schema.StringAttribute{
 				Description: "One-time guarded Postgres connection string for this agent credential (shown once).",

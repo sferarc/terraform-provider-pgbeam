@@ -266,9 +266,6 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 			"updated_at": schema.StringAttribute{
 				Description: "When the policy profile was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}

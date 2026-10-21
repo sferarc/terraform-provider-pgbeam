@@ -212,9 +212,6 @@ func (r *projectResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"updated_at": schema.StringAttribute{
 				Description: "When the project was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"primary_database_id": schema.StringAttribute{
 				Description: "ID of the primary database created with this project.",

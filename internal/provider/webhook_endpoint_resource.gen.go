@@ -109,9 +109,6 @@ func (r *webhookEndpointResource) Schema(_ context.Context, _ resource.SchemaReq
 			"updated_at": schema.StringAttribute{
 				Description: "When the endpoint was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"secret": schema.StringAttribute{
 				Description: "Shared secret used to sign delivery payloads. Write-only.",

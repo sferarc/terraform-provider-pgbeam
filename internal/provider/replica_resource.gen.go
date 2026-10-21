@@ -100,9 +100,6 @@ func (r *replicaResource) Schema(_ context.Context, _ resource.SchemaRequest, re
 			"updated_at": schema.StringAttribute{
 				Description: "When the replica was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}

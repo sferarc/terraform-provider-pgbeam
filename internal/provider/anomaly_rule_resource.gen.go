@@ -102,9 +102,6 @@ func (r *anomalyRuleResource) Schema(_ context.Context, _ resource.SchemaRequest
 			"updated_at": schema.StringAttribute{
 				Description: "When the rule was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}

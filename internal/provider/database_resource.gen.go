@@ -214,9 +214,6 @@ func (r *databaseResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 			"updated_at": schema.StringAttribute{
 				Description: "When the database registration was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 			"password": schema.StringAttribute{
 				Description: "PostgreSQL password. Stored encrypted at rest.",

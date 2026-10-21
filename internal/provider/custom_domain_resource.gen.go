@@ -168,9 +168,6 @@ func (r *customDomainResource) Schema(_ context.Context, _ resource.SchemaReques
 			"updated_at": schema.StringAttribute{
 				Description: "When the custom domain was last updated.",
 				Computed:    true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
-				},
 			},
 		},
 	}
