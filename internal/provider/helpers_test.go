@@ -1,42 +1,10 @@
 package provider
 
 import (
+	"slices"
+	"strings"
 	"testing"
 )
-
-func TestSplitString(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		in   string
-		sep  string
-		want []string
-	}{
-		{"empty string", "", "/", []string{""}},
-		{"no separator", "abc", "/", []string{"abc"}},
-		{"single separator", "a/b", "/", []string{"a", "b"}},
-		{"three parts", "a/b/c", "/", []string{"a", "b", "c"}},
-		{"trailing separator yields empty tail", "a/", "/", []string{"a", ""}},
-		{"leading separator yields empty head", "/a", "/", []string{"", "a"}},
-		{"consecutive separators yield empties", "a//b", "/", []string{"a", "", "b"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := splitString(tt.in, tt.sep)
-			if len(got) != len(tt.want) {
-				t.Fatalf("splitString(%q, %q) = %v (len %d), want %v (len %d)", tt.in, tt.sep, got, len(got), tt.want, len(tt.want))
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("splitString(%q, %q)[%d] = %q, want %q", tt.in, tt.sep, i, got[i], tt.want[i])
-				}
-			}
-		})
-	}
-}
 
 func TestSplitCompositeID(t *testing.T) {
 	t.Parallel()
@@ -44,58 +12,44 @@ func TestSplitCompositeID(t *testing.T) {
 	tests := []struct {
 		name      string
 		id        string
-		n         int
+		names     []string
 		wantParts []string
-		wantErr   bool
 	}{
-		{"two parts ok", "proj/db", 2, []string{"proj", "db"}, false},
-		{"three parts ok", "proj/db/hash", 3, []string{"proj", "db", "hash"}, false},
-		{"too few parts", "proj", 2, nil, true},
-		{"too many parts", "proj/db/extra", 2, nil, true},
-		{"empty id expecting one part ok", "", 1, []string{""}, false},
+		{"two parts", "proj/db", []string{"project_id", "database_id"}, []string{"proj", "db"}},
+		{"three parts", "proj/db/hash", []string{"project_id", "database_id", "query_hash"}, []string{"proj", "db", "hash"}},
+		{"too few parts", "proj", []string{"project_id", "database_id"}, nil},
+		{"extra segment", "a/b/c", []string{"project_id", "database_id"}, nil},
+		{"empty tail", "a/", []string{"project_id", "database_id"}, nil},
+		{"empty head", "/b", []string{"project_id", "database_id"}, nil},
+		{"empty middle", "a//b", []string{"project_id", "database_id"}, nil},
+		{"whitespace segment", " /b", []string{"project_id", "database_id"}, nil},
+		{"empty id", "", []string{"project_id", "database_id"}, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			parts, diags := splitCompositeID(tt.id, tt.n)
-			if tt.wantErr {
+			parts, diags := splitCompositeID(tt.id, tt.names...)
+			if tt.wantParts == nil {
 				if !diags.HasError() {
-					t.Fatalf("splitCompositeID(%q, %d) expected error diagnostics, got none", tt.id, tt.n)
+					t.Fatalf("splitCompositeID(%q) = %v, want error", tt.id, parts)
+				}
+				if parts != nil {
+					t.Errorf("splitCompositeID(%q) parts = %v, want nil on error", tt.id, parts)
+				}
+				detail := diags.Errors()[0].Detail()
+				if want := strings.Join(tt.names, "/"); !strings.Contains(detail, want) {
+					t.Errorf("error detail %q does not name expected format %q", detail, want)
 				}
 				return
 			}
 			if diags.HasError() {
-				t.Fatalf("splitCompositeID(%q, %d) unexpected error: %v", tt.id, tt.n, diags)
+				t.Fatalf("splitCompositeID(%q) unexpected error: %v", tt.id, diags)
 			}
-			if len(parts) != len(tt.wantParts) {
-				t.Fatalf("splitCompositeID(%q, %d) = %v, want %v", tt.id, tt.n, parts, tt.wantParts)
-			}
-			for i := range parts {
-				if parts[i] != tt.wantParts[i] {
-					t.Errorf("part[%d] = %q, want %q", i, parts[i], tt.wantParts[i])
-				}
+			if !slices.Equal(parts, tt.wantParts) {
+				t.Errorf("splitCompositeID(%q) = %v, want %v", tt.id, parts, tt.wantParts)
 			}
 		})
-	}
-}
-
-func TestFormatInt(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		in   int
-		want string
-	}{
-		{2, "2"},
-		{3, "3"},
-		{4, "N"},
-		{0, "N"},
-	}
-	for _, tt := range tests {
-		if got := formatInt(tt.in); got != tt.want {
-			t.Errorf("formatInt(%d) = %q, want %q", tt.in, got, tt.want)
-		}
 	}
 }
 

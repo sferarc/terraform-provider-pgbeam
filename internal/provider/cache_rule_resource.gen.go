@@ -5,7 +5,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -296,9 +295,9 @@ func (r *cacheRuleResource) Delete(ctx context.Context, req resource.DeleteReque
 }
 
 func (r *cacheRuleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	parts := strings.SplitN(req.ID, "/", 3)
-	if len(parts) != 3 {
-		resp.Diagnostics.AddError("Invalid Import ID", "Expected format: project_id/database_id/query_hash")
+	parts, diags := splitCompositeID(req.ID, "project_id", "database_id", "query_hash")
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
 		return
 	}
 

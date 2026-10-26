@@ -5,7 +5,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -58,6 +57,7 @@ type policyProfileResourceModel struct {
 	MaxAffectedRows        types.Int64  `tfsdk:"max_affected_rows"`
 	ContentScanMode        types.String `tfsdk:"content_scan_mode"`
 	ContentScanMaxBytes    types.Int64  `tfsdk:"content_scan_max_bytes"`
+	QueryMode              types.String `tfsdk:"query_mode"`
 	CreatedAt              types.String `tfsdk:"created_at"`
 	UpdatedAt              types.String `tfsdk:"updated_at"`
 }
@@ -256,6 +256,12 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 				Description: "Byte budget for one statement's content scan, spanning all values in the result. Values past it are reported unscannable rather than skipped quietly. The budget covers a whole statement, so the statements of one simple-query batch share it rather than each getting a fresh allowance. 0 uses the scanner default (4 MiB), which covers an interactive result set and deliberately does not cover a bulk export.",
 				Optional:    true,
 			},
+			"query_mode": schema.StringAttribute{
+				Description: "What an agent on this profile may send. sql admits any statement the rest of the profile allows. templates admits only the project's enabled query templates (matched on the parse tree, so spelling and literals in the template's own text count), and refuses everything else with SQLSTATE 42501 and decision rule template_required, MCP query included. A matched template still meets every other rule on this profile: a template narrows what an agent can run and never grants access. The hosted MCP discovery tools (list_tables, describe_table, schema_catalog) keep working under templates.",
+				Optional:    true,
+				Computed:    true,
+				Default:     stringdefault.StaticString("sql"),
+			},
 			"created_at": schema.StringAttribute{
 				Description: "When the policy profile was created.",
 				Computed:    true,
@@ -415,6 +421,11 @@ func (r *policyProfileResource) Create(ctx context.Context, req resource.CreateR
 		createReq.ContentScanMaxBytes = &v
 	}
 
+	if !plan.QueryMode.IsNull() && !plan.QueryMode.IsUnknown() {
+		v := pgbeam.PolicyProfileInputQueryMode(plan.QueryMode.ValueString())
+		createReq.QueryMode = &v
+	}
+
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
 		var statementRulesVar statementRulesModel
 		resp.Diagnostics.Append(plan.StatementRules.As(ctx, &statementRulesVar, objectAsOptions())...)
@@ -506,6 +517,7 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 		!plan.MaxAffectedRows.Equal(state.MaxAffectedRows) ||
 		!plan.ContentScanMode.Equal(state.ContentScanMode) ||
 		!plan.ContentScanMaxBytes.Equal(state.ContentScanMaxBytes) ||
+		!plan.QueryMode.Equal(state.QueryMode) ||
 		!plan.StatementRules.Equal(state.StatementRules)
 
 	updateReq := pgbeam.PolicyProfileInput{
@@ -633,6 +645,11 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 		updateReq.ContentScanMaxBytes = &v
 	}
 
+	if !plan.QueryMode.IsNull() && !plan.QueryMode.IsUnknown() {
+		v := pgbeam.PolicyProfileInputQueryMode(plan.QueryMode.ValueString())
+		updateReq.QueryMode = &v
+	}
+
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
 		var statementRulesVar statementRulesModel
 		resp.Diagnostics.Append(plan.StatementRules.As(ctx, &statementRulesVar, objectAsOptions())...)
@@ -695,9 +712,9 @@ func (r *policyProfileResource) Delete(ctx context.Context, req resource.DeleteR
 }
 
 func (r *policyProfileResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	parts := strings.SplitN(req.ID, "/", 2)
-	if len(parts) != 2 {
-		resp.Diagnostics.AddError("Invalid Import ID", "Expected format: project_id/policy_id")
+	parts, diags := splitCompositeID(req.ID, "project_id", "policy_id")
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
 		return
 	}
 
@@ -863,6 +880,11 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		state.ContentScanMaxBytes = types.Int64Value(int64(*resp.ContentScanMaxBytes))
 	} else {
 		state.ContentScanMaxBytes = types.Int64Null()
+	}
+	if string(resp.QueryMode) != "" {
+		state.QueryMode = types.StringValue(string(resp.QueryMode))
+	} else {
+		state.QueryMode = types.StringNull()
 	}
 	state.CreatedAt = types.StringValue(resp.CreatedAt.Format(time.RFC3339))
 	state.UpdatedAt = types.StringValue(resp.UpdatedAt.Format(time.RFC3339))

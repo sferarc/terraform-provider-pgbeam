@@ -19,5 +19,6 @@ func pgbeamResources() []func() resource.Resource {
 		NewHoneytokenResource,
 		NewAnomalyRuleResource,
 		NewApprovalRuleResource,
+		NewQueryTemplateResource,
 	}
 }

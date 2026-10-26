@@ -1,6 +1,9 @@
 package provider
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -11,40 +14,25 @@ func objectAsOptions() basetypes.ObjectAsOptions {
 	return basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true}
 }
 
-// splitCompositeID splits a composite ID of the form "a/b/c" into exactly n parts.
-func splitCompositeID(id string, n int) ([]string, diag.Diagnostics) {
+// splitCompositeID splits an import ID on '/' into one non-blank segment per
+// name. The SDK interpolates segments into request paths unescaped, so an
+// empty or extra segment would address a different API route.
+func splitCompositeID(id string, names ...string) ([]string, diag.Diagnostics) {
 	var diags diag.Diagnostics
-	parts := splitString(id, "/")
-	if len(parts) != n {
+	parts := strings.Split(id, "/")
+	valid := len(parts) == len(names)
+	for _, p := range parts {
+		if strings.TrimSpace(p) == "" {
+			valid = false
+		}
+	}
+	if !valid {
 		diags.AddAttributeError(
 			path.Root("id"),
 			"Invalid Import ID",
-			"Expected format with "+formatInt(n)+" parts separated by '/'",
+			fmt.Sprintf("Expected import ID in the format %q, got %q.", strings.Join(names, "/"), id),
 		)
+		return nil, diags
 	}
 	return parts, diags
-}
-
-func splitString(s, sep string) []string {
-	result := []string{}
-	start := 0
-	for i := 0; i < len(s); i++ {
-		if string(s[i]) == sep {
-			result = append(result, s[start:i])
-			start = i + 1
-		}
-	}
-	result = append(result, s[start:])
-	return result
-}
-
-func formatInt(n int) string {
-	switch n {
-	case 2:
-		return "2"
-	case 3:
-		return "3"
-	default:
-		return "N"
-	}
 }

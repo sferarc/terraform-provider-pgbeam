@@ -364,3 +364,28 @@ func TestHoneytokenResource_ImportState_RejectsBareID(t *testing.T) {
 		t.Fatal("expected diagnostics for a bare import ID")
 	}
 }
+
+func TestHoneytokenResource_ImportState_RejectsMalformedSegments(t *testing.T) {
+	t.Parallel()
+
+	for _, id := range []string{"prj_1/hnt_1/extra", "prj_1/", "/hnt_1", " /hnt_1"} {
+		t.Run(id, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				t.Error("no request expected")
+				w.WriteHeader(http.StatusInternalServerError)
+			}))
+			defer srv.Close()
+
+			r := newHoneytokenResource(t, srv)
+			s := resourceSchema(t, NewHoneytokenResource())
+
+			resp := &resource.ImportStateResponse{State: tfsdk.State{Schema: s}}
+			r.ImportState(context.Background(), resource.ImportStateRequest{ID: id}, resp)
+			if !resp.Diagnostics.HasError() {
+				t.Fatalf("expected diagnostics for import ID %q", id)
+			}
+		})
+	}
+}

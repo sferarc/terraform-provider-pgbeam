@@ -50,6 +50,16 @@ A project does not take a `region`: by default (`residency = "any"`) PgBeam serv
 | `pgbeam_agent_credential` | Scoped agent credential (one-time secrets) |
 | `pgbeam_webhook_endpoint` | Event delivery endpoint |
 | `pgbeam_policy_profile` | Policy profile (access mode, allowlists, masking, budgets) |
+| `pgbeam_self_host_enrollment` | Self-host (BYOC) enrollment token (one-time secret) |
+| `pgbeam_honeytoken` | Decoy relation that blocks and audits any agent statement touching it |
+| `pgbeam_anomaly_rule` | Anomaly detection sensitivity for one metric, per project or agent credential |
+| `pgbeam_approval_rule` | Sends matching agent statements to a human for approval |
+
+## Data sources
+
+| Data source | Description |
+| --- | --- |
+| `pgbeam_custom_domain_verification` | Triggers and reads DNS verification for a custom domain (`verified`, `error`) |
 
 ## Agent gateway
 

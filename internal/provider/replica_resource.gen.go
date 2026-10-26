@@ -5,7 +5,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -190,9 +189,9 @@ func (r *replicaResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *replicaResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	parts := strings.SplitN(req.ID, "/", 2)
-	if len(parts) != 2 {
-		resp.Diagnostics.AddError("Invalid Import ID", "Expected format: database_id/replica_id")
+	parts, diags := splitCompositeID(req.ID, "database_id", "replica_id")
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
 		return
 	}
 

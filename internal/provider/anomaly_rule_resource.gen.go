@@ -5,7 +5,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -262,9 +261,9 @@ func (r *anomalyRuleResource) Delete(ctx context.Context, req resource.DeleteReq
 }
 
 func (r *anomalyRuleResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	parts := strings.SplitN(req.ID, "/", 2)
-	if len(parts) != 2 {
-		resp.Diagnostics.AddError("Invalid Import ID", "Expected format: project_id/anomaly_rule_id")
+	parts, diags := splitCompositeID(req.ID, "project_id", "anomaly_rule_id")
+	resp.Diagnostics.Append(diags...)
+	if diags.HasError() {
 		return
 	}
 
