@@ -1,5 +1,11 @@
 # @pgbeam/terraform
 
+## 0.4.1
+
+### Patch Changes
+
+- 089333e: Update the provider's indirect `google.golang.org/genproto/googleapis/rpc` dependency.
+
 ## 0.4.0
 
 ### Minor Changes
