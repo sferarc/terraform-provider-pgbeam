@@ -182,7 +182,7 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 							Required:    true,
 						},
 						"kind": schema.StringAttribute{
-							Description: "How to mask. redact replaces with a token, null returns NULL, hash returns a SHA-256 hex.",
+							Description: "How to mask. redact replaces with a token, null returns NULL, hash returns a SHA-256 hex, last4 keeps the final four characters behind \"****\", and email_domain keeps the domain behind \"****@\". A value too short for last4 or not shaped like an email for email_domain is redacted instead.",
 							Required:    true,
 						},
 					},
