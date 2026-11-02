@@ -51,20 +51,22 @@ type spendLimitResourceModel struct {
 }
 
 type limitsModel struct {
-	QueriesPerDay           types.Int64 `tfsdk:"queries_per_day"`
-	MaxProjects             types.Int64 `tfsdk:"max_projects"`
-	MaxDatabases            types.Int64 `tfsdk:"max_databases"`
-	MaxConnections          types.Int64 `tfsdk:"max_connections"`
-	QueriesPerSecond        types.Int64 `tfsdk:"queries_per_second"`
-	BytesPerMonth           types.Int64 `tfsdk:"bytes_per_month"`
-	MaxQueryShapes          types.Int64 `tfsdk:"max_query_shapes"`
-	IncludedSeats           types.Int64 `tfsdk:"included_seats"`
-	MaxAgentCredentials     types.Int64 `tfsdk:"max_agent_credentials"`
-	AuditRetentionDays      types.Int64 `tfsdk:"audit_retention_days"`
-	SandboxMaxBranches      types.Int64 `tfsdk:"sandbox_max_branches"`
-	SandboxMaxUpstreamBytes types.Int64 `tfsdk:"sandbox_max_upstream_bytes"`
-	SandboxIdleSeconds      types.Int64 `tfsdk:"sandbox_idle_seconds"`
-	SandboxTTLSeconds       types.Int64 `tfsdk:"sandbox_ttl_seconds"`
+	QueriesPerDay           types.Int64   `tfsdk:"queries_per_day"`
+	MaxProjects             types.Int64   `tfsdk:"max_projects"`
+	MaxDatabases            types.Int64   `tfsdk:"max_databases"`
+	MaxConnections          types.Int64   `tfsdk:"max_connections"`
+	QueriesPerSecond        types.Int64   `tfsdk:"queries_per_second"`
+	BytesPerMonth           types.Int64   `tfsdk:"bytes_per_month"`
+	OveragePer1k            types.Float64 `tfsdk:"overage_per_1k"`
+	OveragePerGb            types.Float64 `tfsdk:"overage_per_gb"`
+	MaxQueryShapes          types.Int64   `tfsdk:"max_query_shapes"`
+	IncludedSeats           types.Int64   `tfsdk:"included_seats"`
+	MaxAgentCredentials     types.Int64   `tfsdk:"max_agent_credentials"`
+	AuditRetentionDays      types.Int64   `tfsdk:"audit_retention_days"`
+	SandboxMaxBranches      types.Int64   `tfsdk:"sandbox_max_branches"`
+	SandboxMaxUpstreamBytes types.Int64   `tfsdk:"sandbox_max_upstream_bytes"`
+	SandboxIdleSeconds      types.Int64   `tfsdk:"sandbox_idle_seconds"`
+	SandboxTTLSeconds       types.Int64   `tfsdk:"sandbox_ttl_seconds"`
 }
 
 func NewSpendLimitResource() resource.Resource {
@@ -79,6 +81,8 @@ func limitsAttrTypes() map[string]attr.Type {
 		"max_connections":            types.Int64Type,
 		"queries_per_second":         types.Int64Type,
 		"bytes_per_month":            types.Int64Type,
+		"overage_per_1k":             types.Float64Type,
+		"overage_per_gb":             types.Float64Type,
 		"max_query_shapes":           types.Int64Type,
 		"included_seats":             types.Int64Type,
 		"max_agent_credentials":      types.Int64Type,
@@ -198,6 +202,14 @@ func (r *spendLimitResource) Schema(_ context.Context, _ resource.SchemaRequest,
 					},
 					"bytes_per_month": schema.Int64Attribute{
 						Description: "Monthly data transfer quota in bytes. 0 means unlimited.",
+						Required:    true,
+					},
+					"overage_per_1k": schema.Float64Attribute{
+						Description: "Price in USD for each 1,000 queries over the daily quota. 0 means the quota is a hard cap and no query overage is billed.",
+						Required:    true,
+					},
+					"overage_per_gb": schema.Float64Attribute{
+						Description: "Price in USD for each GB transferred over the monthly quota. 0 means the quota is a hard cap and no transfer overage is billed.",
 						Required:    true,
 					},
 					"max_query_shapes": schema.Int64Attribute{
@@ -419,6 +431,8 @@ func (r *spendLimitResource) mapOrganizationPlanToState(ctx context.Context, sta
 		"max_connections":            types.Int64Value(int64(resp.Limits.MaxConnections)),
 		"queries_per_second":         types.Int64Value(int64(resp.Limits.QueriesPerSecond)),
 		"bytes_per_month":            types.Int64Value(int64(resp.Limits.BytesPerMonth)),
+		"overage_per_1k":             types.Float64Value(resp.Limits.OveragePer1k),
+		"overage_per_gb":             types.Float64Value(resp.Limits.OveragePerGb),
 		"max_query_shapes":           types.Int64Value(int64(resp.Limits.MaxQueryShapes)),
 		"included_seats":             types.Int64Value(int64(resp.Limits.IncludedSeats)),
 		"max_agent_credentials":      types.Int64Value(int64(resp.Limits.MaxAgentCredentials)),
