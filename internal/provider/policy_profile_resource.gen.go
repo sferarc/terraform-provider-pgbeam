@@ -58,6 +58,7 @@ type policyProfileResourceModel struct {
 	ContentScanMode        types.String `tfsdk:"content_scan_mode"`
 	ContentScanMaxBytes    types.Int64  `tfsdk:"content_scan_max_bytes"`
 	QueryMode              types.String `tfsdk:"query_mode"`
+	FunctionDenylist       types.List   `tfsdk:"function_denylist"`
 	CreatedAt              types.String `tfsdk:"created_at"`
 	UpdatedAt              types.String `tfsdk:"updated_at"`
 }
@@ -262,6 +263,13 @@ func (r *policyProfileResource) Schema(_ context.Context, _ resource.SchemaReque
 				Computed:    true,
 				Default:     stringdefault.StaticString("sql"),
 			},
+			"function_denylist": schema.ListAttribute{
+				Description: "Functions an agent on this profile may not call, refused with SQLSTATE 42501 and decision rule function_denied. This adds to the proxy's built-in dangerous-function floor, which no profile can relax. Matching is case-insensitive and sees every call in the statement, including inside a CTE, a sub-select or a function argument. A bare entry (recompute) matches the name in every schema. A schema-qualified entry (billing.recompute) matches a call qualified with that schema and also an unqualified call of the same name, since the proxy cannot see where search_path resolves it. A function reached only through an operator, a cast, a view, a trigger or a column default is not matched. A proxy build older than this field ignores it, so the API refuses a non-empty list while the organization has a live self-hosted enrollment.",
+				Optional:    true,
+				Computed:    true,
+				Default:     listdefault.StaticValue(types.ListValueMust(types.StringType, []attr.Value{})),
+				ElementType: types.StringType,
+			},
 			"created_at": schema.StringAttribute{
 				Description: "When the policy profile was created.",
 				Computed:    true,
@@ -426,6 +434,15 @@ func (r *policyProfileResource) Create(ctx context.Context, req resource.CreateR
 		createReq.QueryMode = &v
 	}
 
+	if !plan.FunctionDenylist.IsNull() && !plan.FunctionDenylist.IsUnknown() {
+		var v []string
+		resp.Diagnostics.Append(plan.FunctionDenylist.ElementsAs(ctx, &v, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		createReq.FunctionDenylist = &v
+	}
+
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
 		var statementRulesVar statementRulesModel
 		resp.Diagnostics.Append(plan.StatementRules.As(ctx, &statementRulesVar, objectAsOptions())...)
@@ -518,6 +535,7 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 		!plan.ContentScanMode.Equal(state.ContentScanMode) ||
 		!plan.ContentScanMaxBytes.Equal(state.ContentScanMaxBytes) ||
 		!plan.QueryMode.Equal(state.QueryMode) ||
+		!plan.FunctionDenylist.Equal(state.FunctionDenylist) ||
 		!plan.StatementRules.Equal(state.StatementRules)
 
 	updateReq := pgbeam.PolicyProfileInput{
@@ -648,6 +666,15 @@ func (r *policyProfileResource) Update(ctx context.Context, req resource.UpdateR
 	if !plan.QueryMode.IsNull() && !plan.QueryMode.IsUnknown() {
 		v := pgbeam.PolicyProfileInputQueryMode(plan.QueryMode.ValueString())
 		updateReq.QueryMode = &v
+	}
+
+	if !plan.FunctionDenylist.IsNull() && !plan.FunctionDenylist.IsUnknown() {
+		var v []string
+		resp.Diagnostics.Append(plan.FunctionDenylist.ElementsAs(ctx, &v, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+		updateReq.FunctionDenylist = &v
 	}
 
 	if !plan.StatementRules.IsNull() && !plan.StatementRules.IsUnknown() {
@@ -885,6 +912,17 @@ func (r *policyProfileResource) mapPolicyProfileToState(ctx context.Context, sta
 		state.QueryMode = types.StringValue(string(resp.QueryMode))
 	} else {
 		state.QueryMode = types.StringNull()
+	}
+	if len(resp.FunctionDenylist) > 0 {
+		tagValues := make([]attr.Value, len(resp.FunctionDenylist))
+		for i, t := range resp.FunctionDenylist {
+			tagValues[i] = types.StringValue(t)
+		}
+		tagsList, d := types.ListValue(types.StringType, tagValues)
+		diags.Append(d...)
+		state.FunctionDenylist = tagsList
+	} else {
+		state.FunctionDenylist = types.ListValueMust(types.StringType, []attr.Value{})
 	}
 	state.CreatedAt = types.StringValue(resp.CreatedAt.Format(time.RFC3339))
 	state.UpdatedAt = types.StringValue(resp.UpdatedAt.Format(time.RFC3339))
