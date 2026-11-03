@@ -1,5 +1,11 @@
 # @pgbeam/terraform
 
+## 0.5.1
+
+### Patch Changes
+
+- f5443f4: Update the provider's indirect `google.golang.org/grpc`, `golang.org/x/net` and `github.com/hashicorp/terraform-registry-address` dependencies.
+
 ## 0.5.0
 
 ### Minor Changes
