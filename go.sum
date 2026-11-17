@@ -54,8 +54,8 @@ github.com/vmihailenco/msgpack/v5 v5.4.1 h1:cQriyiUvjTwOHg8QZaPihLWeRAAVoCpE00IU
 github.com/vmihailenco/msgpack/v5 v5.4.1/go.mod h1:GaZTsDaehaPpQVyxrf5mtQlH+pc21PIudVV/E3rRQok=
 github.com/vmihailenco/tagparser/v2 v2.0.0 h1:y09buUbR+b5aycVFQs/g70pqKVZNBmxwAhO7/IwNM9g=
 github.com/vmihailenco/tagparser/v2 v2.0.0/go.mod h1:Wri+At7QHww0WTrCBeu4J6bNtoV6mEfg5OIWRZA9qds=
-go.pgbeam.com/sdk v0.8.2 h1:Ma4zQw7C/i/bjLTv1gRsK4y0Q3QkVtHYaeMrFiP0chk=
-go.pgbeam.com/sdk v0.8.2/go.mod h1:+0c3WyEy6tQ9p/xwDsxe7+1K3oDKf0Hw9HMs4+OOKo4=
+go.pgbeam.com/sdk v0.8.3 h1:CtQHZuuZ1qJDYi3JLQVfZBy9s4qPGXoUfqKl9AsBxbs=
+go.pgbeam.com/sdk v0.8.3/go.mod h1:AooldoySJuNwOOxiHOatE6WkquzAxpuI3/wu4CIgHUE=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
 golang.org/x/net v0.62.0 h1:18ELalfM5+XNRwzM2nYqXsZQ9ByS1uhj2O/U7+5jqRY=

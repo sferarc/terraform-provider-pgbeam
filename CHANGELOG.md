@@ -1,5 +1,11 @@
 # @pgbeam/terraform
 
+## 0.6.1
+
+### Patch Changes
+
+- ef9ac74: chore(deps): update dependencies to their latest versions
+
 ## 0.6.0
 
 ### Minor Changes
